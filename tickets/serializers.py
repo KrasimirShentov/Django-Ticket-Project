@@ -1,25 +1,26 @@
 from rest_framework import serializers
- 
-from .models import Ticket
- 
- 
+
+from .models import Sprint, Ticket
+
+
 class TicketSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ticket
-        # TODO: add 'assignee', 'creator', 'sprint' when the FKs are enabled
-        fields = ['id', 'title', 'description', 'estimation', 'priority', 'created_at', 'updated_at']
-        # TODO: add 'creator' here - it is set from request.user, never by the client
-        read_only_fields = ['id', 'created_at', 'updated_at']
- 
-    # estimation >= 0 and priority in (low, medium, high) are validated automatically by DRF
-    # (PositiveIntegerField and TextChoices). Extra rules go below.
- 
-    # TODO: enable with the sprint FK - no new tickets in a closed sprint
-    # def validate_sprint(self, sprint):
-    #     if sprint is None:
-    #         return sprint
-    #     moving_to_new_sprint = self.instance is None or self.instance.sprint_id != sprint.id
-    #     if sprint.status == 'closed' and moving_to_new_sprint:
-    #         raise serializers.ValidationError('Cannot assign a ticket to a closed sprint.')
-    #     return sprint
- 
+        fields = [
+            'id', 'title', 'description', 'assignee', 'creator',
+            'estimation', 'priority', 'sprint', 'created_at', 'updated_at',
+        ]
+        # creator is set from request.user in the view, never by the client
+        read_only_fields = ['id', 'creator', 'created_at', 'updated_at']
+
+    # estimation >= 0, priority in (low, medium, high) and "assignee / sprint must exist"
+    # are validated automatically by DRF (PositiveIntegerField, TextChoices, ForeignKey).
+
+    def validate_sprint(self, sprint):
+        """A ticket cannot be put into a closed sprint (null = backlog is always fine)."""
+        if sprint is None:
+            return sprint
+        moving_to_new_sprint = self.instance is None or self.instance.sprint_id != sprint.id
+        if sprint.status == Sprint.Status.CLOSED and moving_to_new_sprint:
+            raise serializers.ValidationError('Cannot assign a ticket to a closed sprint.')
+        return sprint
