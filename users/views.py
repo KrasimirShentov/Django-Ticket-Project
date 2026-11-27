@@ -50,7 +50,7 @@ class LogoutUserView(views.APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class ManageUserView(generics.RetrieveAPIView):
+class ManageUserView(generics.RetrieveUpdateAPIView):
     """
     Manage the authenticated user.
     """
