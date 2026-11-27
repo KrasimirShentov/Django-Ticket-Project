@@ -29,10 +29,9 @@ class Ticket(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    # TODO: enable now that Sprint exists (a ticket without a sprint is a backlog ticket)
-    # sprint = models.ForeignKey(
-    #     'Sprint', null=True, blank=True, on_delete=models.SET_NULL, related_name='tickets'
-    # )
+    sprint = models.ForeignKey(
+        'Sprint', null=True, blank=True, on_delete=models.SET_NULL, related_name='tickets'
+    )
 
     class Meta:
         ordering = ['-created_at']
@@ -40,10 +39,9 @@ class Ticket(models.Model):
     def __str__(self):
         return self.title
 
-    # TODO: enable together with the sprint FK
-    # @property
-    # def is_backlog(self):
-    #     return self.sprint_id is None
+    @property
+    def is_backlog(self):
+        return self.sprint_id is None
 
 
 class Sprint(models.Model):
