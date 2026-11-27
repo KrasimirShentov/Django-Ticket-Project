@@ -7,6 +7,7 @@ from django.urls import reverse
 
 from rest_framework.test import APIClient
 from rest_framework import status
+from rest_framework.authtoken.models import Token
 
 
 REGISTER_USER_URL = reverse('users:register')
@@ -179,3 +180,29 @@ class PrivateUserApiTests(TestCase):
         self.assertEqual(self.user.name, payload['name'])
         self.assertTrue(self.user.check_password(payload['password']))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_logout_user_success(self):
+        """
+        Test logging out deletes the token and invalidates further requests.
+        """
+        token = Token.objects.create(user=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+
+        res = self.client.post(LOGOUT_URL)
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+
+        token_exists = Token.objects.filter(user=self.user).exists()
+        self.assertFalse(token_exists)
+
+        me_res = self.client.get(ME_URL)
+        self.assertEqual(me_res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_logout_unauthenticated_fails(self):
+        """
+        Test logging out without credentials returns 401 Unauthorized.
+        """
+        self.client.credentials()
+        res = self.client.post(LOGOUT_URL)
+
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
