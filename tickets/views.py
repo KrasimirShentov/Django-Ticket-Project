@@ -6,10 +6,9 @@ from rest_framework.pagination import PageNumberPagination
 # (an admin is a user with is_staff=True, which is what IsAdminUser checks)
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 
-from .filters import TicketFilter
-from .models import Ticket
-from .serializers import TicketSerializer
-
+from .filters import TicketFilter, SprintFilter
+from .models import Ticket, Sprint
+from .serializers import TicketSerializer, SprintSerializer
 
 class TicketPagination(PageNumberPagination):
     page_size = 10
@@ -41,3 +40,23 @@ class TicketViewSet(viewsets.ModelViewSet):
         page = self.paginate_queryset(queryset)
         serializer = self.get_serializer(page, many=True)
         return self.get_paginated_response(serializer.data)
+
+class SprintViewSet(viewsets.ModelViewSet):
+    queryset = Sprint.objects.select_related('created_by')
+    serializer_class = SprintSerializer
+
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = SprintFilter
+
+    pagination_class = TicketPagination
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            return [IsAuthenticated()]
+
+        return [IsAuthenticated(), IsAdminUser()]
+
+    def perform_create(self, serializer):
+        serializer.save(
+            created_by=self.request.user
+        )
