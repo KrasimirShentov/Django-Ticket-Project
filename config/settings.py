@@ -45,6 +45,7 @@ INSTALLED_APPS = [
 
     'config',
     'users',
+    'tickets',
 ]
 
 REST_FRAMEWORK = {
