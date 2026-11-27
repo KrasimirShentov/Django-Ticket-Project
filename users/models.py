@@ -16,12 +16,15 @@ class UserManager(BaseUserManager):
     """
     Manager for users.
     """
-    def create_user(self, email, password=None, **extra_fields):
+    def create_user(self, email, password, **extra_fields):
         """
         Create and save new user with employee role (default user).
         """
         if not email:
             raise ValueError('User must have an email address')
+
+        if not password:
+            raise ValueError('User must have a password')
 
         email = self.normalize_email(email)
         validate_email(email)
