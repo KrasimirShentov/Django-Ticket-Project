@@ -1,10 +1,46 @@
-from django.db import models
-from django.conf import settings
-from django.core.exceptions import ValidationError
 import uuid
 
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.db import models
+
+
 class Ticket(models.Model):
-    pass
+    class Priority(models.TextChoices):
+        LOW = 'low', 'Low'
+        MEDIUM = 'medium', 'Medium'
+        HIGH = 'high', 'High'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    assignee = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='assigned_tickets'
+    )
+    creator = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='created_tickets', editable=False
+    )
+    estimation = models.PositiveIntegerField()
+    priority = models.CharField(max_length=10, choices=Priority.choices)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # TODO: enable now that Sprint exists (a ticket without a sprint is a backlog ticket)
+    # sprint = models.ForeignKey(
+    #     'Sprint', null=True, blank=True, on_delete=models.SET_NULL, related_name='tickets'
+    # )
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.title
+
+    # TODO: enable together with the sprint FK
+    # @property
+    # def is_backlog(self):
+    #     return self.sprint_id is None
+
 
 class Sprint(models.Model):
 
