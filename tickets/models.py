@@ -15,7 +15,11 @@ class Ticket(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     assignee = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='assigned_tickets'
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='assigned_tickets',
     )
     creator = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='created_tickets', editable=False
