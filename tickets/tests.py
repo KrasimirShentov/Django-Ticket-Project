@@ -175,3 +175,253 @@ class TicketApiTests(APITestCase):
         self.assertEqual(
             self.client.get(self.list_url, {'sprint': str(self.active.id)}).data['count'], 1
         )
+
+class SprintApiTests(APITestCase):
+
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            email='admin@test.com',
+            password='x',
+            name='Admin',
+            is_staff=True
+        )
+
+        self.employee = User.objects.create_user(
+            email='employee@test.com',
+            password='x',
+            name='Employee'
+        )
+
+        today = datetime.date.today()
+
+        self.sprint = Sprint.objects.create(
+            name='Sprint 1',
+            description='First sprint',
+            start_date=today,
+            end_date=today + datetime.timedelta(days=14),
+            created_by=self.admin
+        )
+
+        self.list_url = '/api/sprints/'
+        self.detail_url = f'/api/sprints/{self.sprint.id}/'
+
+        self.valid = {
+            'name': 'Sprint 2',
+            'description': 'New sprint',
+            'start_date': str(today + datetime.timedelta(days=15)),
+            'end_date': str(today + datetime.timedelta(days=29)),
+            'status': Sprint.Status.ACTIVE
+        }
+
+    # --- authentication
+
+    def test_unauthenticated_is_rejected(self):
+        response = self.client.get(self.list_url)
+
+        self.assertEqual(
+            response.status_code,
+            401
+        )
+
+    # --- authorization
+
+    def test_employee_can_read(self):
+        self.client.force_authenticate(
+            self.employee
+        )
+
+        self.assertEqual(
+            self.client.get(self.list_url).status_code,
+            200
+        )
+
+        self.assertEqual(
+            self.client.get(self.detail_url).status_code,
+            200
+        )
+
+    def test_employee_cannot_create(self):
+        self.client.force_authenticate(
+            self.employee
+        )
+
+        self.assertEqual(
+            self.client.post(
+                self.list_url,
+                self.valid
+            ).status_code,
+            403
+        )
+
+    def test_employee_cannot_update(self):
+        self.client.force_authenticate(
+            self.employee
+        )
+
+        self.assertEqual(
+            self.client.patch(
+                self.detail_url,
+                {'name': 'Changed'}
+            ).status_code,
+            403
+        )
+
+    def test_employee_cannot_delete(self):
+        self.client.force_authenticate(
+            self.employee
+        )
+
+        self.assertEqual(
+            self.client.delete(
+                self.detail_url
+            ).status_code,
+            403
+        )
+
+    # --- CRUD
+
+    def test_admin_can_create_sprint(self):
+        self.client.force_authenticate(
+            self.admin
+        )
+
+        response = self.client.post(
+            self.list_url,
+            self.valid
+        )
+
+        self.assertEqual(
+            response.status_code,
+            201
+        )
+
+    def test_admin_can_update_sprint(self):
+        self.client.force_authenticate(
+            self.admin
+        )
+
+        response = self.client.patch(
+            self.detail_url,
+            {'name': 'Updated Sprint'}
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
+    def test_admin_can_delete_sprint(self):
+        self.client.force_authenticate(
+            self.admin
+        )
+
+        response = self.client.delete(
+            self.detail_url
+        )
+
+        self.assertEqual(
+            response.status_code,
+            204
+        )
+
+    # --- creator
+
+    def test_creator_is_set_from_authenticated_user(self):
+        self.client.force_authenticate(
+            self.admin
+        )
+
+        response = self.client.post(
+            self.list_url,
+            self.valid
+        )
+
+        self.assertEqual(
+            str(response.data['created_by']),
+            str(self.admin.id)
+        )
+
+    def test_creator_cannot_be_overwritten(self):
+        self.client.force_authenticate(
+            self.admin
+        )
+
+        response = self.client.post(
+            self.list_url,
+            {
+                **self.valid,
+                'created_by': str(self.employee.id)
+            }
+        )
+
+        self.assertEqual(
+            str(response.data['created_by']),
+            str(self.admin.id)
+        )
+
+    # --- validation
+
+    def test_invalid_dates_rejected(self):
+        self.client.force_authenticate(
+            self.admin
+        )
+
+        response = self.client.post(
+            self.list_url,
+            {
+                **self.valid,
+                'start_date': '2026-12-20',
+                'end_date': '2026-12-01'
+            }
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    # --- filters
+
+    def test_filter_by_status(self):
+        Sprint.objects.create(
+            name='Closed Sprint',
+            start_date=datetime.date.today(),
+            end_date=datetime.date.today() + datetime.timedelta(days=14),
+            created_by=self.admin,
+            status=Sprint.Status.CLOSED
+        )
+
+        self.client.force_authenticate(
+            self.employee
+        )
+
+        response = self.client.get(
+            self.list_url,
+            {'status': Sprint.Status.CLOSED}
+        )
+
+        self.assertEqual(
+            response.data['count'],
+            1
+        )
+
+    # --- pagination
+
+    def test_list_is_paginated(self):
+        self.client.force_authenticate(
+            self.employee
+        )
+
+        response = self.client.get(
+            self.list_url
+        )
+
+        self.assertIn(
+            'results',
+            response.data
+        )
+
+        self.assertIn(
+            'count',
+            response.data
+        )
